@@ -1,5 +1,7 @@
 import "./globals.css";
 import Header from "@/components/templates/Header";
+import Chatbot from "@/components/chatbot";
+
 
 export const metadata = {
   title: "Create Next App",
@@ -17,6 +19,7 @@ export default function RootLayout({ children }) {
       <body>
         <Header info={userInfo} />
         {children}
+        <Chatbot />
       </body>
     </html>
   );
