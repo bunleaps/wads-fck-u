@@ -35,7 +35,10 @@ function TicketsPage({ user }) {
       }
 
       const config = {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
       };
 
       let apiUrl = "";
