@@ -17,7 +17,7 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/signin`, { email, password });
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}/signin`, { email, password });
 
       const data = response.data;
 
