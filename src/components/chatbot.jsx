@@ -146,7 +146,7 @@ Aside from the FAQ, you cannot answer any other unrelated questions.
   };
 
   return (
-    <div className="fixed bottom-4 left-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50">
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}

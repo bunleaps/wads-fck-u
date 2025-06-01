@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function TicketTable({ tickets }) {
+export default function TicketTableAdmin({ tickets }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -85,6 +85,7 @@ export default function TicketTable({ tickets }) {
         <table className="w-full text-sm text-left text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50">
             <tr>
+              <th className="px-6 py-3 font-semibold">Customer</th>
               <th className="px-6 py-3 font-semibold">Ticket Details</th>
               <th className="px-6 py-3 font-semibold">Assigned Admin</th>
               <th className="px-6 py-3 font-semibold">Purchase ID</th>
@@ -97,6 +98,9 @@ export default function TicketTable({ tickets }) {
               const statusConfig = getStatusConfig(ticket.status);
               return (
                 <tr key={ticket._id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-2 text-gray-600">
+                    {ticket.creator.username}
+                  </td>
                   <td className="px-4 py-2">
                     <Link
                       href={`/dashboard/tickets/${ticket._id}`}
