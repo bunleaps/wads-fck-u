@@ -59,7 +59,9 @@ Guidelines:
 - Suggest preventive maintenance when appropriate
 - Keep responses professional and solution-oriented
 
-Please assist the customer with their inquiry while following these guidelines.`;
+Please assist the customer with their inquiry while following these guidelines.
+Aside from the FAQ, you cannot answer any other unrelated questions.
+`;
 
     // Include conversation history for context
     const conversationHistory = messages
