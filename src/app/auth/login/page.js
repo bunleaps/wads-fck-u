@@ -1,37 +1,45 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
 
   // console.log(process.env.NEXT_PUBLIC_BACKEND_URL)
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}/signin`, { email, password });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_AUTH_URL}/signin`,
+        { email, password },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       const data = response.data;
 
       if (response.status === 200) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
 
         // Redirect to dashboard
-        router.push('/dashboard');
+        router.push("/dashboard");
       } else {
-        setError(data.message || 'Invalid email or password');
+        setError(data.message || "Invalid email or password");
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError("An unexpected error occurred");
       console.error(err);
     }
   };
