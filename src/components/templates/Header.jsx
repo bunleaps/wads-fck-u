@@ -74,12 +74,59 @@ export default function Header() {
       {variant === "home" && (
         <div className="w-full p-4 flex justify-between items-center bg-orange-400">
           <h1 className="font-bold">
-            <Link href="/">LC Sign</Link>
+            <Link href="/dashboard">LC Sign</Link>
           </h1>
-          <nav className="flex gap-4">
-            <a href="/auth/login">Login</a>
-            <a href="/auth/signup">Register</a>
-          </nav>
+          {currentUser ? (
+            <nav className="flex items-center gap-4" ref={dropdownRef}>
+              <div className="relative">
+                <button
+                  onClick={toggleDropdown}
+                  className="flex items-center gap-2 text-white focus:outline-none p-1 rounded-md hover:bg-orange-500 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-semibold">
+                    {currentUser?.firstName?.charAt(0)?.toUpperCase()}
+                    {currentUser?.lastName?.charAt(0)?.toUpperCase()}
+                  </div>
+                  <span className="hidden sm:inline">
+                    {currentUser?.firstName} {currentUser?.lastName}
+                  </span>
+                  <IoMdArrowDropdown
+                    className={`w-5 h-5 transition-transform ${
+                      isDropdownOpen ? "transform rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl z-50 py-1 ring-1 ring-black ring-opacity-5">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      role="menuitem"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Profiles
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsDropdownOpen(false); // Close dropdown after logout
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                      role="menuitem"
+                    >
+                      Log Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </nav>
+          ) : (
+            <nav className="flex gap-4">
+              <Link href="/auth/login">Login</Link>
+              <Link href="/auth/signup">Register</Link>
+            </nav>
+          )}
         </div>
       )}
 

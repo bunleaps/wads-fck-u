@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { isLoggedIn, isTokenExpired } from "@/utils/auth";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,12 @@ export default function Login() {
   const router = useRouter();
 
   // console.log(process.env.NEXT_PUBLIC_BACKEND_URL)
+  useEffect(() => {
+    // If user is already logged in and token is not expired, redirect to dashboard
+    if (isLoggedIn() && !isTokenExpired()) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { isLoggedIn, isTokenExpired } from "@/utils/auth";
 
 function SignUp() {
   const [username, setUsername] = useState("");
@@ -16,6 +17,13 @@ function SignUp() {
   const [lastName, setLastName] = useState("");
 
   const router = useRouter();
+
+  useEffect(() => {
+    // If user is already logged in and token is not expired, redirect to dashboard
+    if (isLoggedIn() && !isTokenExpired()) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
