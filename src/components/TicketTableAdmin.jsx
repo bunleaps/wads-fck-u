@@ -99,7 +99,7 @@ export default function TicketTableAdmin({ tickets }) {
               return (
                 <tr key={ticket._id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2 text-gray-600">
-                    {ticket.creator.username}
+                    {ticket.creator.firstName} {ticket.creator.lastName}
                   </td>
                   <td className="px-4 py-2">
                     <Link
@@ -110,7 +110,8 @@ export default function TicketTableAdmin({ tickets }) {
                     </Link>
                   </td>
                   <td className="px-4 py-2 text-gray-600">
-                    {ticket.assignedAdmin.username}
+                    {ticket.assignedAdmin.firstName}{" "}
+                    {ticket.assignedAdmin.lastName}
                   </td>
                   <td className="px-4 py-2 text-gray-600">
                     {ticket.purchase.orderNumber}
@@ -123,9 +124,7 @@ export default function TicketTableAdmin({ tickets }) {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-gray-600">
-                    {new Date(
-                      ticket.createdAt
-                    ).toLocaleDateString()}
+                    {new Date(ticket.createdAt).toLocaleDateString()}
                   </td>
                 </tr>
               );

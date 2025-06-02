@@ -1,16 +1,17 @@
-'use client';
+"use client";
 
-import { use, useEffect, useState } from 'react'; // Import 'use'
-import axios from 'axios';
+import { use, useEffect, useState } from "react"; // Import 'use'
+import axios from "axios";
 import Link from "next/link";
-import { getToken } from '@/utils/auth';
-import withAuth from '@/components/withAuth';
+import { getToken } from "@/utils/auth";
+import withAuth from "@/components/withAuth";
 
-function TicketPage({ params: paramsPromise, user }) { // user prop is injected by withAuth, rename params to indicate it might be a Promise
+function TicketPage({ params: paramsPromise, user }) {
+  // user prop is injected by withAuth, rename params to indicate it might be a Promise
   const actualParams = use(paramsPromise); // Unwrap the params Promise
   const [ticket, setTicket] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const ticketId = actualParams.id; // Use the unwrapped params
 
   useEffect(() => {
@@ -24,7 +25,7 @@ function TicketPage({ params: paramsPromise, user }) { // user prop is injected 
 
     const fetchTicketThread = async () => {
       setIsLoading(true);
-      setError('');
+      setError("");
       const token = getToken();
 
       if (!token) {
@@ -44,7 +45,9 @@ function TicketPage({ params: paramsPromise, user }) { // user prop is injected 
         setTicket(response.data.ticket || response.data); // Adjust based on your API response structure
       } catch (err) {
         console.error("Error fetching ticket thread:", err);
-        setError(err.response?.data?.message || "Failed to load ticket details.");
+        setError(
+          err.response?.data?.message || "Failed to load ticket details."
+        );
         setTicket(null); // Ensure ticket is null on error
       } finally {
         setIsLoading(false);
@@ -56,9 +59,14 @@ function TicketPage({ params: paramsPromise, user }) { // user prop is injected 
 
   console.log(ticket);
 
-  if (isLoading) return <div className="p-4 text-center">Loading ticket details...</div>;
-  if (error) return <div className="p-4 text-red-500 text-center">Error: {error}</div>;
-  if (!ticket) return <div className="p-4 text-center">Ticket not found or unable to load.</div>;
+  if (isLoading)
+    return <div className="p-4 text-center">Loading ticket details...</div>;
+  if (error)
+    return <div className="p-4 text-red-500 text-center">Error: {error}</div>;
+  if (!ticket)
+    return (
+      <div className="p-4 text-center">Ticket not found or unable to load.</div>
+    );
 
   return (
     <div className="p-4">
@@ -104,36 +112,42 @@ function TicketPage({ params: paramsPromise, user }) { // user prop is injected 
           <h2 className="text-xl font-semibold">Messages</h2>
           {ticket.messages && ticket.messages.length > 0 ? (
             ticket.messages.map((message) => (
-            <div key={message._id} className="border rounded-lg p-4"> {/* Assuming message._id is unique */}
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">From: {message.sender?.username || message.senderId || 'Unknown Sender'}</span> {/* Adjust based on sender data */}
-                <span className="text-sm text-gray-500">
-                  {new Date(
-                    message.createdAt
-                  ).toLocaleString()}
-                </span>
-              </div>
-              <p className="text-gray-700 mb-4">{message.content}</p>
-              {message.attachments && message.attachments.length > 0 && (
-                <div className="border-t pt-3">
-                  <h3 className="text-sm font-semibold mb-2">Attachments:</h3>
-                  <div className="flex gap-2">
-                    {message.attachments.map((attachment) => (
-                      <a
-                        key={attachment._id} // Assuming attachment._id is unique
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        {attachment.filename}
-                      </a>
-                    ))}
-                  </div>
+              <div key={message._id} className="border rounded-lg p-4">
+                {" "}
+                {/* Assuming message._id is unique */}
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">
+                    From:{" "}
+                    {message.sender?.firstName +
+                      " " +
+                      message.sender?.lastName || "Unknown Sender"}
+                  </span>{" "}
+                  {/* Adjust based on sender data */}
+                  <span className="text-sm text-gray-500">
+                    {new Date(message.createdAt).toLocaleString()}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))
+                <p className="text-gray-700 mb-4">{message.content}</p>
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="border-t pt-3">
+                    <h3 className="text-sm font-semibold mb-2">Attachments:</h3>
+                    <div className="flex gap-2">
+                      {message.attachments.map((attachment) => (
+                        <a
+                          key={attachment._id} // Assuming attachment._id is unique
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          {attachment.filename}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
           ) : (
             <p>No messages in this ticket yet.</p>
           )}
@@ -143,4 +157,4 @@ function TicketPage({ params: paramsPromise, user }) { // user prop is injected 
   );
 }
 
-export default withAuth(TicketPage, ['admin', 'user']); // Protect the page
+export default withAuth(TicketPage, ["admin", "user"]); // Protect the page

@@ -18,7 +18,7 @@ export default function Header() {
     // Fetch user info using the utility function
     const user = getUser();
     setCurrentUser(user);
-  }, []);
+  }, [pathname]); // Re-run on initial mount and when pathname changes.
 
   useEffect(() => {
     const handleClickOutside = (event) => {

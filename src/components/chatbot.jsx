@@ -66,7 +66,10 @@ Aside from the FAQ, you cannot answer any other unrelated questions.
     // Include conversation history for context
     const conversationHistory = messages
       .slice(-5) // Only include last 5 messages for context
-      .map((msg) => `${msg.sender === "user" ? "Customer" : "Support"}: ${msg.text}`)
+      .map(
+        (msg) =>
+          `${msg.sender === "user" ? "Customer" : "Support"}: ${msg.text}`
+      )
       .join("\n");
 
     return `${systemPrompt}\n\nPrevious conversation:\n${conversationHistory}\n\nCustomer: ${userInput}\nSupport:`;
@@ -84,9 +87,11 @@ Aside from the FAQ, you cannot answer any other unrelated questions.
 
     try {
       const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      
+
       if (!apiKey) {
-        throw new Error("Gemini API key is not configured. Please add NEXT_PUBLIC_GEMINI_API_KEY to your .env.local file.");
+        throw new Error(
+          "Gemini API key is not configured. Please add NEXT_PUBLIC_GEMINI_API_KEY to your .env.local file."
+        );
       }
 
       // Initialize Gemini
@@ -131,15 +136,13 @@ Aside from the FAQ, you cannot answer any other unrelated questions.
     } catch (error) {
       console.error("Error getting response:", error);
       let errorMessage = "Sorry, I encountered an error. Please try again.";
-      
+
       if (error.message.includes("API key")) {
-        errorMessage = "API key is not configured or invalid. Please check your .env.local file.";
+        errorMessage =
+          "API key is not configured or invalid. Please check your .env.local file.";
       }
-      
-      setMessages((prev) => [
-        ...prev,
-        { text: errorMessage, sender: "bot" },
-      ]);
+
+      setMessages((prev) => [...prev, { text: errorMessage, sender: "bot" }]);
     } finally {
       setIsLoading(false);
     }
@@ -170,7 +173,7 @@ Aside from the FAQ, you cannot answer any other unrelated questions.
       ) : (
         <div className="bg-white rounded-lg shadow-xl w-80 h-96 flex flex-col">
           <div className="p-4 border-b flex justify-between items-center">
-            <h3 className="font-semibold">LCD Sign Support</h3>
+            <h3 className="font-semibold">LCD Sign Support - AI Chatbot</h3>
             <button
               onClick={() => setIsOpen(false)}
               className="text-gray-500 hover:text-gray-700"

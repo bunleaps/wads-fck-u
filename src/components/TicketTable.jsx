@@ -20,7 +20,6 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
   const [fetchPurchasesError, setFetchPurchasesError] = useState("");
   const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
 
-
   const getStatusConfig = (status) => {
     switch (status) {
       case "open":
@@ -126,7 +125,9 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
       if (onTicketCreated) onTicketCreated();
     } catch (error) {
       console.error("Error creating ticket:", error);
-      setSubmitError(error.response?.data?.message || "Failed to create ticket.");
+      setSubmitError(
+        error.response?.data?.message || "Failed to create ticket."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -193,7 +194,11 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
                     </Link>
                   </td>
                   <td className="px-4 py-2 text-gray-600">
-                    {ticket.assignedAdmin ? ticket.assignedAdmin.username : "unassign"}
+                    {ticket.assignedAdmin
+                      ? `${ticket.assignedAdmin.firstName} ${ticket.assignedAdmin.lastName}`
+                      : ticket.assignedAdmin
+                      ? ticket.assignedAdmin.username
+                      : "unassign"}
                   </td>
                   <td className="px-4 py-2 text-gray-600">
                     {ticket.purchase.orderNumber}
@@ -206,9 +211,7 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-gray-600">
-                    {new Date(
-                      ticket.createdAt
-                    ).toLocaleDateString()}
+                    {new Date(ticket.createdAt).toLocaleDateString()}
                   </td>
                 </tr>
               );
@@ -224,7 +227,10 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
             <h2 className="text-xl font-bold mb-4">Create New Ticket</h2>
             <form onSubmit={handleCreateTicketSubmit}>
               <div className="mb-4">
-                <label htmlFor="ticketTitle" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="ticketTitle"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Title
                 </label>
                 <input
@@ -238,14 +244,26 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
               </div>
 
               <div className="mb-4">
-                <label htmlFor="purchaseId" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="purchaseId"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Related Purchase
                 </label>
-                {isLoadingPurchases && <p className="text-sm text-gray-500">Loading purchases...</p>}
-                {fetchPurchasesError && <p className="text-sm text-red-500">{fetchPurchasesError}</p>}
-                {!isLoadingPurchases && !fetchPurchasesError && userPurchases.length === 0 && (
-                    <p className="text-sm text-gray-500">No purchases found or you might need to make a purchase first.</p>
+                {isLoadingPurchases && (
+                  <p className="text-sm text-gray-500">Loading purchases...</p>
                 )}
+                {fetchPurchasesError && (
+                  <p className="text-sm text-red-500">{fetchPurchasesError}</p>
+                )}
+                {!isLoadingPurchases &&
+                  !fetchPurchasesError &&
+                  userPurchases.length === 0 && (
+                    <p className="text-sm text-gray-500">
+                      No purchases found or you might need to make a purchase
+                      first.
+                    </p>
+                  )}
                 {!isLoadingPurchases && userPurchases.length > 0 && (
                   <select
                     id="purchaseId"
@@ -254,10 +272,14 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
                     className="border p-2 rounded w-full"
                     required
                   >
-                    <option value="" disabled>Select a purchase</option>
+                    <option value="" disabled>
+                      Select a purchase
+                    </option>
                     {userPurchases.map((purchase) => (
                       <option key={purchase._id} value={purchase._id}>
-                        Order: {purchase.orderNumber} - Items: {purchase.items.length} - Total: ${purchase.totalAmount.toFixed(2)}
+                        Order: {purchase.orderNumber} - Items:{" "}
+                        {purchase.items.length} - Total: $
+                        {purchase.totalAmount.toFixed(2)}
                       </option>
                     ))}
                   </select>
@@ -265,7 +287,10 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
               </div>
 
               <div className="mb-4">
-                <label htmlFor="initialMessage" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="initialMessage"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Initial Message
                 </label>
                 <textarea
@@ -278,7 +303,9 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
                 ></textarea>
               </div>
 
-              {submitError && <p className="text-red-500 text-sm mb-3">{submitError}</p>}
+              {submitError && (
+                <p className="text-red-500 text-sm mb-3">{submitError}</p>
+              )}
 
               <div className="flex justify-end gap-3">
                 <button
@@ -292,7 +319,11 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
                 <button
                   type="submit"
                   className="px-4 py-2 text-white bg-orange-500 hover:bg-orange-600 rounded"
-                  disabled={isSubmitting || isLoadingPurchases || (userPurchases.length === 0 && !fetchPurchasesError)}
+                  disabled={
+                    isSubmitting ||
+                    isLoadingPurchases ||
+                    (userPurchases.length === 0 && !fetchPurchasesError)
+                  }
                 >
                   {isSubmitting ? "Submitting..." : "Create Ticket"}
                 </button>
