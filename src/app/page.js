@@ -2,34 +2,147 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import axios from "axios";
+import { useEffect, useCallback } from "react";
+import { getToken } from "@/utils/auth"; // Assuming getToken is available
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 export default function Home() {
   const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedUser, setSelectedUser] = useState("");
-  const [purchases, setPurchases] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(""); // Use ID instead of user object
+
+  // State for fetching users
+  const [apiUsers, setApiUsers] = useState([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [fetchUsersError, setFetchUsersError] = useState(null);
+
+  // State for posting purchases
+  const [isPostingPurchase, setIsPostingPurchase] = useState(false);
+  const [postPurchaseError, setPostPurchaseError] = useState(null);
+  const [postPurchaseSuccess, setPostPurchaseSuccess] = useState(null);
 
   // Mock data for LC Sign items
   const lcSignItems = [
-    { id: 1, name: "Exit Sign", price: 89.99, category: "Safety" },
-    { id: 2, name: "No Smoking Sign", price: 24.99, category: "Regulatory" },
-    { id: 3, name: "Restroom Sign", price: 19.99, category: "Directional" },
-    { id: 4, name: "Emergency Exit Sign", price: 99.99, category: "Safety" },
+    { id: 1, name: "Exit Sign", price: 89.99, quantity: 1 },
+    { id: 2, name: "No Smoking Sign", price: 24.99, quantity: 1 },
+    { id: 3, name: "Restroom Sign", price: 19.99, quantity: 1 },
+    { id: 4, name: "Emergency Exit Sign", price: 99.99, quantity: 1 },
     {
       id: 5,
       name: "Handicap Access Sign",
       price: 29.99,
-      category: "Accessibility",
+      quantity: 1,
     },
   ];
 
-  // Mock data for users
-  const users = [
-    { id: 1, name: "John Doe", email: "john@example.com" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com" },
-    { id: 3, name: "Mike Johnson", email: "mike@example.com" },
-  ];
+  // Fetch users from API
+  const fetchUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setFetchUsersError(null);
+    try {
+      // API route that doesn't need a token
+      const response = await axios.get(
+        `${API_BASE_URL}/api/purchases/users_list`
+      );
+      setApiUsers(response.data.users || response.data || []); // Adjust based on your API response structure
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      setFetchUsersError(
+        err.response?.data?.message || "Failed to load users list."
+      );
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]); // Fetch users on component mount
+
+  const handleAssignPurchase = async () => {
+    if (!selectedItem || !selectedUserId) {
+      setPostPurchaseError("Please select an item and a user.");
+      return;
+    }
+
+    setIsPostingPurchase(true);
+    setPostPurchaseError(null);
+    setPostPurchaseSuccess(null);
+
+    const token = getToken(); // Get token for the purchase creation API
+    if (!token) {
+      setPostPurchaseError(
+        "Authentication token not found. Cannot create purchase."
+      );
+      setIsPostingPurchase(false);
+      return;
+    }
+
+    // Construct the purchase data payload
+    // Assuming the backend expects the user ID and item details
+    const purchaseData = {
+      userId: selectedUserId,
+      items: [
+        {
+          // Assuming only one item can be selected and assigned at a time,
+          // and the backend needs the product ID to identify the item.
+          productId: selectedItem.id, // Add the product ID from your mock data
+          name: selectedItem.name,
+          price: selectedItem.price,
+        },
+      ],
+      // Backend should calculate totalAmount and set orderNumber/status
+    };
+
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/purchases`, // API route to create a purchase
+        purchaseData,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // Include token
+          },
+        }
+      );
+
+      // Assuming backend returns the created purchase object on success
+      const createdPurchase = response.data.purchase || response.data;
+
+      setPostPurchaseSuccess(
+        `Purchase created successfully! Order: ${createdPurchase.orderNumber}`
+      );
+
+      // Clear selections after successful post
+      setSelectedItem(null);
+      setSelectedUserId("");
+
+      // Note: The "Recent Purchases" list below is currently removed/commented out.
+      // A full implementation would fetch recent purchases from an API here or elsewhere.
+    } catch (err) {
+      console.error("Error creating purchase:", err);
+      setPostPurchaseError(
+        err.response?.data?.message || "Failed to create purchase."
+      );
+    } finally {
+      setIsPostingPurchase(false);
+    }
+  };
+
+  // Remove or comment out the mock purchases state as it's no longer used for display
+  // const [purchases, setPurchases] = useState([]);
+
+  // Remove or comment out the mock users data as it's replaced by API fetch
+  // const users = [
+  //   { id: 1, name: "John Doe", email: "john@example.com" },
+  //   { id: 2, name: "Jane Smith", email: "jane@example.com" },
+  //   { id: 3, name: "Mike Johnson", email: "mike@example.com" },
+  // ];
+
+  // Remove the handleAssignPurchase mock logic
+  /*
   const handleAssignPurchase = () => {
     if (selectedItem && selectedUser) {
       const newPurchase = {
@@ -43,6 +156,7 @@ export default function Home() {
       setSelectedUser("");
     }
   };
+  */
 
   return (
     <main className="min-h-screen bg-orange-50">
@@ -70,8 +184,11 @@ export default function Home() {
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
-                      <p className="text-sm text-orange-600">{item.category}</p>
+                      <h3 className="font-medium text-gray-900">
+                        {item.name} (Qty: {item.quantity})
+                      </h3>
+                      {/* <p className="text-sm text-orange-600">{item.category}</p> */}{" "}
+                      {/* Category removed from mock */}
                     </div>
                     <span className="text-lg font-semibold text-orange-600">
                       ${item.price}
@@ -108,76 +225,64 @@ export default function Home() {
               </label>
               <select
                 id="user"
-                value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
                 className="w-full p-2 border border-orange-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
+                disabled={isLoadingUsers} // Disable while loading users
               >
                 <option value="" className="text-gray-500">
-                  Select a user...
+                  {isLoadingUsers ? "Loading users..." : "Select a user..."}
                 </option>
-                {users.map((user) => (
-                  <option
-                    key={user.id}
-                    value={user.id}
-                    className="text-gray-900"
-                  >
-                    {user.name} ({user.email})
+                {fetchUsersError && (
+                  <option value="" disabled className="text-red-500">
+                    {fetchUsersError}
                   </option>
-                ))}
+                )}
+                {!isLoadingUsers &&
+                  !fetchUsersError &&
+                  apiUsers.length === 0 && (
+                    <option value="" disabled className="text-gray-500">
+                      No users found
+                    </option>
+                  )}
+                {!isLoadingUsers &&
+                  apiUsers.length > 0 &&
+                  apiUsers.map((user) => (
+                    <option
+                      key={user._id} // Assuming API returns _id
+                      value={user._id} // Use _id as the value
+                      className="text-gray-900"
+                    >
+                      {user.firstName} {user.lastName} ({user.username})
+                    </option>
+                  ))}
               </select>
             </div>
 
             {/* Assign Button */}
             <button
               onClick={handleAssignPurchase}
-              disabled={!selectedItem || !selectedUser}
+              disabled={!selectedItem || !selectedUserId || isPostingPurchase}
               className={`w-full py-2 px-4 rounded-md text-white font-medium ${
-                selectedItem && selectedUser
+                selectedItem && selectedUserId && !isPostingPurchase
                   ? "bg-orange-600 hover:bg-orange-700"
                   : "bg-gray-400 cursor-not-allowed"
               }`}
             >
-              Assign Purchase
+              {isPostingPurchase ? "Assigning..." : "Assign Purchase"}
             </button>
 
-            {/* Recent Purchases */}
-            <div className="mt-8">
-              <h3 className="text-lg font-medium text-orange-900 mb-4">
-                Recent Purchases
-              </h3>
-              <div className="space-y-4">
-                {purchases.map((purchase) => (
-                  <div
-                    key={purchase.id}
-                    className="p-4 border border-orange-200 rounded-lg bg-orange-50"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-orange-900">
-                          {purchase.item.name}
-                        </p>
-                        <p className="text-sm text-orange-700">
-                          Assigned to: {purchase.user.name}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-orange-900">
-                          ${purchase.item.price}
-                        </p>
-                        <p className="text-sm text-orange-700">
-                          {purchase.date}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {purchases.length === 0 && (
-                  <p className="text-orange-600 text-center">
-                    No purchases assigned yet
-                  </p>
-                )}
-              </div>
-            </div>
+            {/* Feedback messages */}
+            {postPurchaseError && (
+              <p className="mt-4 text-sm text-red-600 text-center">
+                {postPurchaseError}
+              </p>
+            )}
+            {postPurchaseSuccess && (
+              <p className="mt-4 text-sm text-green-600 text-center">
+                {postPurchaseSuccess}
+              </p>
+            )}
           </div>
         </div>
       </div>
