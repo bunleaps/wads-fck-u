@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import axios from "axios";
+import { getToken } from "@/utils/auth";
 
-export default function TicketTable({ tickets }) {
+export default function TicketTable({ tickets, user, onTicketCreated }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // State for Create Ticket Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTicketTitle, setNewTicketTitle] = useState("");
+  const [selectedPurchaseId, setSelectedPurchaseId] = useState("");
+  const [initialMessage, setInitialMessage] = useState("");
+  const [userPurchases, setUserPurchases] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [fetchPurchasesError, setFetchPurchasesError] = useState("");
+  const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
+
 
   const getStatusConfig = (status) => {
     switch (status) {
@@ -52,6 +66,72 @@ export default function TicketTable({ tickets }) {
         : true
     );
 
+  useEffect(() => {
+    if (isModalOpen && userPurchases.length === 0) {
+      const fetchUserPurchases = async () => {
+        setIsLoadingPurchases(true);
+        setFetchPurchasesError("");
+        const token = getToken();
+        if (!token) {
+          setFetchPurchasesError("Authentication required to fetch purchases.");
+          setIsLoadingPurchases(false);
+          return;
+        }
+        try {
+          const response = await axios.get(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/purchases/user`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          setUserPurchases(response.data.purchases || response.data || []);
+        } catch (error) {
+          console.error("Error fetching user purchases:", error);
+          setFetchPurchasesError(
+            error.response?.data?.message || "Failed to load purchases."
+          );
+        } finally {
+          setIsLoadingPurchases(false);
+        }
+      };
+      fetchUserPurchases();
+    }
+  }, [isModalOpen]); // Removed userPurchases.length from dependency to allow re-fetch if modal reopens after an error
+
+  const handleCreateTicketSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError("");
+    const token = getToken();
+
+    if (!newTicketTitle || !selectedPurchaseId || !initialMessage) {
+      setSubmitError("All fields are required.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets`,
+        {
+          title: newTicketTitle,
+          purchaseId: selectedPurchaseId,
+          initialMessage: initialMessage,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setIsModalOpen(false);
+      setNewTicketTitle("");
+      setSelectedPurchaseId("");
+      setInitialMessage("");
+      // Optionally, trigger a refresh of the tickets list in the parent component
+      if (onTicketCreated) onTicketCreated();
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      setSubmitError(error.response?.data?.message || "Failed to create ticket.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="p-4">
       <div className="mb-4 space-y-2">
@@ -78,6 +158,13 @@ export default function TicketTable({ tickets }) {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="border p-2 rounded w-full"
           />
+          {/* Create Ticket Button */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded whitespace-nowrap"
+          >
+            Create New Ticket
+          </button>
         </div>
       </div>
 
@@ -106,7 +193,7 @@ export default function TicketTable({ tickets }) {
                     </Link>
                   </td>
                   <td className="px-4 py-2 text-gray-600">
-                    {ticket.assignedAdmin.username}
+                    {ticket.assignedAdmin ? ticket.assignedAdmin.username : "unassign"}
                   </td>
                   <td className="px-4 py-2 text-gray-600">
                     {ticket.purchase.orderNumber}
@@ -129,6 +216,91 @@ export default function TicketTable({ tickets }) {
           </tbody>
         </table>
       </div>
+
+      {/* Create Ticket Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+            <h2 className="text-xl font-bold mb-4">Create New Ticket</h2>
+            <form onSubmit={handleCreateTicketSubmit}>
+              <div className="mb-4">
+                <label htmlFor="ticketTitle" className="block text-sm font-medium text-gray-700 mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  id="ticketTitle"
+                  value={newTicketTitle}
+                  onChange={(e) => setNewTicketTitle(e.target.value)}
+                  className="border p-2 rounded w-full"
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="purchaseId" className="block text-sm font-medium text-gray-700 mb-1">
+                  Related Purchase
+                </label>
+                {isLoadingPurchases && <p className="text-sm text-gray-500">Loading purchases...</p>}
+                {fetchPurchasesError && <p className="text-sm text-red-500">{fetchPurchasesError}</p>}
+                {!isLoadingPurchases && !fetchPurchasesError && userPurchases.length === 0 && (
+                    <p className="text-sm text-gray-500">No purchases found or you might need to make a purchase first.</p>
+                )}
+                {!isLoadingPurchases && userPurchases.length > 0 && (
+                  <select
+                    id="purchaseId"
+                    value={selectedPurchaseId}
+                    onChange={(e) => setSelectedPurchaseId(e.target.value)}
+                    className="border p-2 rounded w-full"
+                    required
+                  >
+                    <option value="" disabled>Select a purchase</option>
+                    {userPurchases.map((purchase) => (
+                      <option key={purchase._id} value={purchase._id}>
+                        Order: {purchase.orderNumber} - Items: {purchase.items.length} - Total: ${purchase.totalAmount.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="initialMessage" className="block text-sm font-medium text-gray-700 mb-1">
+                  Initial Message
+                </label>
+                <textarea
+                  id="initialMessage"
+                  value={initialMessage}
+                  onChange={(e) => setInitialMessage(e.target.value)}
+                  rows="4"
+                  className="border p-2 rounded w-full"
+                  required
+                ></textarea>
+              </div>
+
+              {submitError && <p className="text-red-500 text-sm mb-3">{submitError}</p>}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-white bg-orange-500 hover:bg-orange-600 rounded"
+                  disabled={isSubmitting || isLoadingPurchases || (userPurchases.length === 0 && !fetchPurchasesError)}
+                >
+                  {isSubmitting ? "Submitting..." : "Create Ticket"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
