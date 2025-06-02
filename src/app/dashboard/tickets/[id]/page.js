@@ -1,10 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react"; // Import 'use'
+import { use, useEffect, useState, useCallback } from "react"; // Import 'use' and useCallback
 import axios from "axios";
 import Link from "next/link";
 import { getToken } from "@/utils/auth";
 import withAuth from "@/components/withAuth";
+import { FiEdit } from "react-icons/fi"; // Import an edit icon
 
 function TicketPage({ params: paramsPromise, user }) {
   // user prop is injected by withAuth, rename params to indicate it might be a Promise
@@ -14,16 +15,72 @@ function TicketPage({ params: paramsPromise, user }) {
   const [error, setError] = useState("");
   const ticketId = actualParams.id; // Use the unwrapped params
 
+  // State for new functionalities
+  const [replyContent, setReplyContent] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+
+  // Admin specific state
+  const [availableAdmins, setAvailableAdmins] = useState([]);
+  const [selectedAdminId, setSelectedAdminId] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  const TICKET_STATUSES = ["open", "in_progress", "resolved", "closed"]; // Define available statuses
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
+  // Lifted fetchTicketDetails and wrapped in useCallback
+  const fetchTicketDetails = useCallback(
+    async (tokenToUse) => {
+      if (!ticketId) {
+        setError("Ticket ID is missing for fetching details.");
+        setTicket(null);
+        return null; // Return null as ticket could not be fetched
+      }
+      if (!tokenToUse) {
+        // Ensure token is provided
+        setError("Authentication token not provided for fetching details.");
+        setTicket(null);
+        return null;
+      }
+      try {
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketId}`,
+          {
+            headers: { Authorization: `Bearer ${tokenToUse}` },
+          }
+        );
+        const fetchedTicket = response.data.ticket || response.data; // Adjust based on your API response structure
+        setTicket(fetchedTicket);
+        setSelectedStatus(fetchedTicket?.status || "");
+        return fetchedTicket; // Return the fetched ticket
+      } catch (err) {
+        console.error("Error fetching ticket details:", err);
+        setError(
+          err.response?.data?.message || "Failed to load ticket details."
+        );
+        setTicket(null); // Ensure ticket is null on error
+        return null; // Return null on error
+      }
+    },
+    [ticketId]
+  ); // Dependency: ticketId
+
   useEffect(() => {
-    if (!ticketId || !user) {
-      // Don't fetch if id or user is not available yet
-      // withAuth should handle user availability
+    if (!user) {
+      // If user is not yet available (e.g. due to withAuth HOC)
+      setIsLoading(false); // Stop loading, withAuth will handle redirection or user update
+      return;
+    }
+    if (!ticketId) {
       setIsLoading(false);
-      if (!ticketId) setError("Ticket ID is missing.");
+      setError("Ticket ID is missing.");
       return;
     }
 
-    const fetchTicketThread = async () => {
+    const fetchInitialData = async () => {
       setIsLoading(true);
       setError("");
       const token = getToken();
@@ -31,33 +88,40 @@ function TicketPage({ params: paramsPromise, user }) {
       if (!token) {
         setError("Authentication token not found.");
         setIsLoading(false);
-        // withAuth should redirect, but this is a safeguard
         return;
       }
 
-      try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
+      const fetchedTicket = await fetchTicketDetails(token);
+
+      if (fetchedTicket && user?.role === "admin") {
+        try {
+          const adminRes = await axios.get(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/admins`, // Using /api/users/admins for fetching admin list
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          setAvailableAdmins(adminRes.data.admins || adminRes.data || []);
+          // If ticket has an assigned admin, pre-select them
+          if (fetchedTicket.assignedAdmin?._id) {
+            setSelectedAdminId(fetchedTicket.assignedAdmin._id);
           }
-        );
-        setTicket(response.data.ticket || response.data); // Adjust based on your API response structure
-      } catch (err) {
-        console.error("Error fetching ticket thread:", err);
-        setError(
-          err.response?.data?.message || "Failed to load ticket details."
-        );
-        setTicket(null); // Ensure ticket is null on error
-      } finally {
-        setIsLoading(false);
+        } catch (err) {
+          console.error("Error fetching admins:", err);
+          // Non-critical error, so don't block page load
+          setActionError("Could not load list of admins.");
+        }
       }
+      setIsLoading(false);
     };
 
-    fetchTicketThread();
-  }, [ticketId, user]); // Re-fetch if ticketId or user changes
+    fetchInitialData();
+  }, [ticketId, user, fetchTicketDetails]); // Added fetchTicketDetails as a dependency
 
-  console.log(ticket);
+  // Effect to update selectedStatus when ticket data changes (e.g., after an update)
+  useEffect(() => {
+    if (ticket) {
+      setSelectedStatus(ticket.status);
+    }
+  }, [ticket]);
 
   if (isLoading)
     return <div className="p-4 text-center">Loading ticket details...</div>;
@@ -67,6 +131,164 @@ function TicketPage({ params: paramsPromise, user }) {
     return (
       <div className="p-4 text-center">Ticket not found or unable to load.</div>
     );
+
+  const handleReplySubmit = async (e) => {
+    e.preventDefault();
+    if (!replyContent.trim()) {
+      setActionError("Reply content cannot be empty.");
+      return;
+    }
+    setIsReplying(true);
+    setActionError("");
+    setActionSuccess("");
+    const token = getToken();
+
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketId}/messages`,
+        { content: replyContent },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setTicket(response.data); // Backend returns the fully populated ticket directly
+      setReplyContent("");
+      setActionSuccess("Reply posted successfully!");
+    } catch (err) {
+      console.error("Error posting reply:", err.response || err.message || err);
+      const backendErrorMessage = err.response?.data?.error; // Backend uses { error: "..." }
+      const statusText = err.response?.statusText;
+      const statusCode = err.response?.status;
+      setActionError(
+        backendErrorMessage ||
+          (statusCode ? `${statusCode} ${statusText}` : "Failed to post reply.")
+      );
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const handleAssignAdmin = async (e) => {
+    e.preventDefault();
+    if (!selectedAdminId) {
+      setActionError("Please select an admin to assign.");
+      return;
+    }
+    setIsAssigning(true);
+    setActionError("");
+    setActionSuccess("");
+    const token = getToken();
+
+    try {
+      await axios.patch(
+        // No need to store response if we re-fetch
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketId}/assign`,
+        { adminId: selectedAdminId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActionSuccess("Ticket assigned successfully!");
+
+      // Re-fetch ticket details to get the populated assignedAdmin
+      const tokenForRefresh = getToken();
+      if (tokenForRefresh) {
+        await fetchTicketDetails(tokenForRefresh); // This will call setTicket with fresh data
+      } else {
+        setActionError(
+          "Session possibly expired. Please refresh to continue or log in again."
+        );
+      }
+
+      setTimeout(() => {
+        setIsAdminModalOpen(false); // Close modal
+        setActionSuccess(""); // Clear success message after closing
+      }, 1500); // Delay to show success message
+    } catch (err) {
+      console.error(
+        "Error assigning admin:",
+        err.response || err.message || err
+      );
+      const backendErrorMessage = err.response?.data?.error; // Backend uses { error: "..." }
+      const statusText = err.response?.statusText;
+      const statusCode = err.response?.status;
+      setActionError(
+        backendErrorMessage ||
+          (statusCode
+            ? `${statusCode} ${statusText}`
+            : "Failed to assign ticket.")
+      );
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleChangeStatus = async (e) => {
+    e.preventDefault();
+    if (!selectedStatus) {
+      setActionError("Please select a status.");
+      return;
+    }
+    setIsUpdatingStatus(true);
+    setActionError("");
+    setActionSuccess("");
+    const token = getToken();
+
+    try {
+      await axios.patch(
+        // No need to store response if we re-fetch
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketId}/status`,
+        { status: selectedStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActionSuccess("Ticket status updated successfully!");
+
+      // Re-fetch ticket details to get the updated status reflected properly
+      const tokenForRefresh = getToken();
+      if (tokenForRefresh) {
+        await fetchTicketDetails(tokenForRefresh);
+      } else {
+        setActionError(
+          "Session possibly expired. Please refresh to continue or log in again."
+        );
+      }
+      setTimeout(() => {
+        setIsAdminModalOpen(false); // Close modal
+        setActionSuccess(""); // Clear success message
+      }, 1500);
+    } catch (err) {
+      console.error(
+        "Error updating status:",
+        err.response || err.message || err
+      );
+      const backendErrorMessage = err.response?.data?.error; // Assuming consistent error format
+      const statusText = err.response?.statusText;
+      const statusCode = err.response?.status;
+      setActionError(
+        backendErrorMessage ||
+          (statusCode
+            ? `${statusCode} ${statusText}`
+            : "Failed to update status.")
+      );
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "open":
+        return "text-blue-600";
+      case "in_progress":
+        return "text-yellow-600";
+      case "finished":
+        return "text-green-600";
+      case "closed":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
+    }
+  };
+
+  const currentAssignedAdmin = ticket.assignedAdmin
+    ? `${ticket.assignedAdmin.firstName} ${ticket.assignedAdmin.lastName} (${ticket.assignedAdmin.username})`
+    : "Unassigned";
 
   return (
     <div className="p-4">
@@ -94,19 +316,184 @@ function TicketPage({ params: paramsPromise, user }) {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">{ticket.title}</h1>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-gray-600">Status: {ticket.status}</span>
-            <span className="text-gray-600">
-              Created:{" "}
-              {new Date(
-                // Assuming createdAt is a valid date string or number
-                ticket.createdAt
-              ).toLocaleDateString()}
-            </span>
+        <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+          {/* Ticket Info Section */}
+          <div className="flex-grow">
+            <h1 className="text-2xl font-bold">{ticket.title}</h1>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
+              <p>
+                <strong>Status:</strong>{" "}
+                <span
+                  className={`${getStatusColor(ticket.status)} font-semibold`}
+                >
+                  {ticket.status.replace("_", " ").toUpperCase()}
+                </span>
+              </p>
+              <p>
+                <strong>Assigned to:</strong>{" "}
+                <span className="font-semibold">{currentAssignedAdmin}</span>
+              </p>
+              <p>
+                <strong>Created by:</strong> {ticket.creator?.firstName}{" "}
+                {ticket.creator?.lastName} ({ticket.creator?.username})
+              </p>
+              <p>
+                <strong>Purchase Order:</strong>{" "}
+                {ticket.purchase?.orderNumber || "N/A"}
+              </p>
+              <p>
+                <strong>Created:</strong>{" "}
+                {new Date(ticket.createdAt).toLocaleDateString()}
+              </p>
+              <p>
+                <strong>Last Updated:</strong>{" "}
+                {new Date(ticket.updatedAt).toLocaleDateString()}
+              </p>
+            </div>
           </div>
+
+          {/* Admin Actions - Compact and to the side */}
+          {user?.role === "admin" && (
+            <div className="md:w-1/3 lg:w-1/4 flex flex-col items-end">
+              <button
+                onClick={() => setIsAdminModalOpen(true)}
+                className="flex items-center px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors"
+                aria-label="Manage Ticket"
+              >
+                <FiEdit size={16} className="mr-2" />
+                Manage Ticket
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Admin Controls Modal */}
+        {isAdminModalOpen && user?.role === "admin" && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex justify-center items-center z-50 p-4">
+            <div className="bg-white p-5 sm:p-8 rounded-lg shadow-xl w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Manage Ticket
+                </h3>
+                <button
+                  onClick={() => setIsAdminModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Close modal"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Assign Admin Form */}
+                <form onSubmit={handleAssignAdmin} className="space-y-3">
+                  <h4 className="text-md font-medium text-gray-800">
+                    Assign to Admin
+                  </h4>
+                  <div>
+                    <label
+                      htmlFor="assignAdminModal"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Select Admin:
+                    </label>
+                    <select
+                      id="assignAdminModal"
+                      value={selectedAdminId}
+                      onChange={(e) => setSelectedAdminId(e.target.value)}
+                      className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      disabled={availableAdmins.length === 0}
+                    >
+                      <option value="">-- Select --</option>
+                      {availableAdmins.map((admin) => (
+                        <option key={admin._id} value={admin._id}>
+                          {admin.firstName} {admin.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isAssigning || !selectedAdminId}
+                    className="w-full px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+                  >
+                    {isAssigning ? "Assigning..." : "Assign"}
+                  </button>
+                </form>
+
+                {/* Change Status Form */}
+                <form
+                  onSubmit={handleChangeStatus}
+                  className="space-y-3 pt-4 border-t border-gray-200"
+                >
+                  <h4 className="text-md font-medium text-gray-800">
+                    Update Status
+                  </h4>
+                  <div>
+                    <label
+                      htmlFor="changeStatusModal"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      New Status:
+                    </label>
+                    <select
+                      id="changeStatusModal"
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    >
+                      {TICKET_STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status.charAt(0).toUpperCase() +
+                            status.slice(1).replace("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={
+                      isUpdatingStatus ||
+                      !selectedStatus ||
+                      selectedStatus === ticket.status
+                    }
+                    className="w-full px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-green-300"
+                  >
+                    {isUpdatingStatus ? "Updating..." : "Update Status"}
+                  </button>
+                </form>
+              </div>
+
+              {(actionError || actionSuccess) && (
+                <div className="mt-4 text-center">
+                  {actionError && (
+                    <p className="text-sm text-red-600 bg-red-100 p-2 rounded">
+                      {actionError}
+                    </p>
+                  )}
+                  {actionSuccess && (
+                    <p className="text-sm text-green-600 bg-green-100 p-2 rounded">
+                      {actionSuccess}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Messages</h2>
@@ -153,6 +540,39 @@ function TicketPage({ params: paramsPromise, user }) {
           )}
         </div>
       </div>
+
+      {/* Reply Section */}
+      <div className="mt-6 bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold mb-4">Post a Reply</h2>
+        <form onSubmit={handleReplySubmit}>
+          <textarea
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            rows="4"
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Type your message here..."
+            required
+          ></textarea>
+          <button
+            type="submit"
+            disabled={isReplying}
+            className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300"
+          >
+            {isReplying ? "Submitting..." : "Submit Reply"}
+          </button>
+        </form>
+      </div>
+
+      {actionError && !isAdminModalOpen && (
+        <p className="mt-4 text-sm text-red-600 bg-red-100 p-3 rounded text-center">
+          {actionError}
+        </p>
+      )}
+      {actionSuccess && !isAdminModalOpen && (
+        <p className="mt-4 text-sm text-green-600 bg-green-100 p-3 rounded text-center">
+          {actionSuccess}
+        </p>
+      )}
     </div>
   );
 }

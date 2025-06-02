@@ -87,7 +87,6 @@ export default function TicketTableAdmin({ tickets }) {
             <tr>
               <th className="px-6 py-3 font-semibold">Customer</th>
               <th className="px-6 py-3 font-semibold">Ticket Details</th>
-              <th className="px-6 py-3 font-semibold">Assigned Admin</th>
               <th className="px-6 py-3 font-semibold">Purchase ID</th>
               <th className="px-6 py-3 font-semibold">Current Status</th>
               <th className="px-6 py-3 font-semibold">Created At</th>
@@ -108,11 +107,6 @@ export default function TicketTableAdmin({ tickets }) {
                     >
                       {ticket.title}
                     </Link>
-                  </td>
-                  <td className="px-4 py-2 text-gray-600">
-                    {ticket.assignedAdmin
-                      ? `${ticket.assignedAdmin.firstName} ${ticket.assignedAdmin.lastName}`
-                      : "Unassigned"}
                   </td>
                   <td className="px-4 py-2 text-gray-600">
                     {ticket.purchase.orderNumber}

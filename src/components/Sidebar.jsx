@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HiOutlineTicket } from "react-icons/hi2";
+import { HiOutlineTicket, HiOutlineShoppingCart } from "react-icons/hi2";
 import { MdOutlineDashboard, MdSettings } from "react-icons/md"; // Example admin icons
 import { FiUsers } from "react-icons/fi"; // Example admin icon
 import { usePathname } from "next/navigation";
@@ -26,32 +26,32 @@ export default function Sidebar() {
       icon: <HiOutlineTicket />,
     },
     {
-      title: "My Documents", // Changed from Purchases for example
-      link: "/dashboard/documents",
-      icon: <HiOutlineTicket />,
+      title: "Purchases",
+      link: "/dashboard/purchases",
+      icon: <HiOutlineShoppingCart />,
     },
   ];
 
   const adminMenu = [
     {
-      title: "Overview",
-      link: "/dashboard/admin/overview",
+      title: "All Tickets",
+      link: "/dashboard/tickets",
       icon: <MdOutlineDashboard />,
     },
     {
-      title: "User Management",
-      link: "/dashboard/admin/users",
+      title: "Assigned Tickets",
+      link: "/dashboard/tickets/assigned",
+      icon: <HiOutlineTicket />,
+    },
+    {
+      title: "Purchases",
+      link: "/dashboard/purchases",
+      icon: <HiOutlineShoppingCart />,
+    },
+    {
+      title: "Users",
+      link: "/dashboard/users",
       icon: <FiUsers />,
-    },
-    {
-      title: "Document Types",
-      link: "/dashboard/admin/document-types",
-      icon: <HiOutlineTicket />, // Placeholder, choose appropriate
-    },
-    {
-      title: "Settings",
-      link: "/dashboard/admin/settings",
-      icon: <MdSettings />,
     },
   ];
 
