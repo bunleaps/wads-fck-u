@@ -18,6 +18,7 @@ function TicketPage({ params: paramsPromise, user }) {
   // State for new functionalities
   const [replyContent, setReplyContent] = useState("");
   const [isReplying, setIsReplying] = useState(false);
+  const [replyAttachments, setReplyAttachments] = useState([]); // State for attachments
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
 
@@ -143,23 +144,42 @@ function TicketPage({ params: paramsPromise, user }) {
     setActionSuccess("");
     const token = getToken();
 
+    const formData = new FormData();
+    formData.append("content", replyContent);
+
+    // Append attachments if any
+    if (replyAttachments.length > 0) {
+      for (let i = 0; i < replyAttachments.length; i++) {
+        formData.append("attachments", replyAttachments[i]);
+      }
+    }
+
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets/${ticketId}/messages`,
-        { content: replyContent },
-        { headers: { Authorization: `Bearer ${token}` } }
+        formData, // Send formData instead of JSON object
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // 'Content-Type': 'multipart/form-data' is automatically set by Axios when sending FormData
+          },
+        }
       );
       setTicket(response.data); // Backend returns the fully populated ticket directly
       setReplyContent("");
+      setReplyAttachments([]); // Clear attachments after successful post
       setActionSuccess("Reply posted successfully!");
     } catch (err) {
-      console.error("Error posting reply:", err.response || err.message || err);
       const backendErrorMessage = err.response?.data?.error; // Backend uses { error: "..." }
       const statusText = err.response?.statusText;
       const statusCode = err.response?.status;
       setActionError(
         backendErrorMessage ||
           (statusCode ? `${statusCode} ${statusText}` : "Failed to post reply.")
+      );
+      console.error(
+        "Error posting reply:",
+        err.response?.data || err.message || err
       );
     } finally {
       setIsReplying(false);
@@ -553,6 +573,23 @@ function TicketPage({ params: paramsPromise, user }) {
             placeholder="Type your message here..."
             required
           ></textarea>
+          <div className="mt-3">
+            <label
+              htmlFor="attachments"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Attach files (up to 5):
+            </label>
+            <input
+              type="file"
+              id="attachments"
+              multiple
+              onChange={(e) => setReplyAttachments(Array.from(e.target.files))} // Convert FileList to Array
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              accept="image/*,application/pdf,.doc,.docx,.txt,.xls,.xlsx" // Optional: specify accepted file types
+            />
+          </div>
+
           <button
             type="submit"
             disabled={isReplying}

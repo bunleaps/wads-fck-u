@@ -16,6 +16,7 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
   const [initialMessage, setInitialMessage] = useState("");
   const [userPurchases, setUserPurchases] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newTicketAttachments, setNewTicketAttachments] = useState([]); // State for attachments
   const [submitError, setSubmitError] = useState("");
   const [fetchPurchasesError, setFetchPurchasesError] = useState("");
   const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
@@ -107,21 +108,34 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
       return;
     }
 
+    const formData = new FormData();
+    formData.append("title", newTicketTitle);
+    formData.append("purchaseId", selectedPurchaseId);
+    formData.append("initialMessage", initialMessage);
+
+    // Append attachments if any
+    if (newTicketAttachments.length > 0) {
+      for (let i = 0; i < newTicketAttachments.length; i++) {
+        formData.append("attachments", newTicketAttachments[i]); // Key "attachments"
+      }
+    }
+
     try {
       await axios.post(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/tickets`,
+        formData, // Send FormData
         {
-          title: newTicketTitle,
-          purchaseId: selectedPurchaseId,
-          initialMessage: initialMessage,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // 'Content-Type': 'multipart/form-data' is automatically set by Axios
+          },
+        }
       );
       setIsModalOpen(false);
       setNewTicketTitle("");
       setSelectedPurchaseId("");
       setInitialMessage("");
-      // Optionally, trigger a refresh of the tickets list in the parent component
+      setNewTicketAttachments([]); // Clear selected attachments
       if (onTicketCreated) onTicketCreated();
     } catch (error) {
       console.error("Error creating ticket:", error);
@@ -301,6 +315,26 @@ export default function TicketTable({ tickets, user, onTicketCreated }) {
                   className="border p-2 rounded w-full"
                   required
                 ></textarea>
+              </div>
+
+              {/* Attachments Input */}
+              <div className="mb-4">
+                <label
+                  htmlFor="newTicketAttachments"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Attach files (up to 5):
+                </label>
+                <input
+                  type="file"
+                  id="newTicketAttachments"
+                  multiple
+                  onChange={(e) =>
+                    setNewTicketAttachments(Array.from(e.target.files))
+                  }
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  accept="image/*,application/pdf,.doc,.docx,.txt,.xls,.xlsx" // Optional: specify accepted file types
+                />
               </div>
 
               {submitError && (
