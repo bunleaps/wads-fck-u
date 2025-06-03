@@ -80,9 +80,13 @@ export default function Home() {
       return;
     }
 
+    // Generate a random 3-digit number for the order number
+    const randomThreeDigits = Math.floor(Math.random() * 900) + 100;
+    const generatedOrderNumber = `ORD${randomThreeDigits}`;
+
     // Construct the purchase data payload
-    // Assuming the backend expects the user ID and item details
     const purchaseData = {
+      orderNumber: generatedOrderNumber, // Add the generated order number
       userId: selectedUserId,
       items: [
         {
@@ -90,10 +94,14 @@ export default function Home() {
           // and the backend needs the product ID to identify the item.
           productId: selectedItem.id, // Add the product ID from your mock data
           name: selectedItem.name,
-          price: selectedItem.price,
+          quantity: selectedItem.quantity, // Add quantity from selected item
+          price: selectedItem.price, // Price of the item
         },
       ],
-      // Backend should calculate totalAmount and set orderNumber/status
+      // Add totalAmount and status, similar to your seed data structure.
+      // Backend might recalculate totalAmount and will likely generate orderNumber.
+      totalAmount: selectedItem.price * selectedItem.quantity, // Calculate total for the single item
+      status: "pending", // Set an initial status
     };
 
     try {

@@ -59,7 +59,7 @@ export default function UsersTableAdmin({ users, onEditUser, onDeleteUser }) {
                     <div
                       className={`absolute z-20 right-0 w-48 bg-white rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5
                                   ${
-                                    users.indexOf(user) >= users.length - 2
+                                    users.indexOf(user) >= users.length - 3
                                       ? "bottom-full mb-1"
                                       : "top-full mt-1"
                                   }`}
