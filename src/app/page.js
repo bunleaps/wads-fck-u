@@ -83,10 +83,11 @@ export default function Home() {
         {
           // Assuming only one item can be selected and assigned at a time,
           // and the backend needs the product ID to identify the item.
+          orderNumber: generatedOrderNumber,
           productId: selectedItem.id, // Add the product ID from your mock data
           name: selectedItem.name,
           quantity: selectedItem.quantity, // Add quantity from selected item
-          price: selectedItem.price, // Price of the item
+          totalAmount: selectedItem.price, // Price of the item
         },
       ],
       // Add totalAmount and status, similar to your seed data structure.
