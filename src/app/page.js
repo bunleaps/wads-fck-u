@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import axios from "axios";
 import { useEffect, useCallback } from "react";
-import { getToken } from "@/utils/auth"; // Assuming getToken is available
+import { getToken, isLoggedIn } from "@/utils/auth"; // Import isLoggedIn
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
@@ -59,7 +59,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]); // Fetch users on component mount
+  }, [fetchUsers]);
 
   const handleAssignPurchase = async () => {
     if (!selectedItem || !selectedUserId) {
@@ -70,15 +70,6 @@ export default function Home() {
     setIsPostingPurchase(true);
     setPostPurchaseError(null);
     setPostPurchaseSuccess(null);
-
-    const token = getToken(); // Get token for the purchase creation API
-    if (!token) {
-      setPostPurchaseError(
-        "Authentication token not found. Cannot create purchase."
-      );
-      setIsPostingPurchase(false);
-      return;
-    }
 
     // Generate a random 3-digit number for the order number
     const randomThreeDigits = Math.floor(Math.random() * 900) + 100;
@@ -111,7 +102,6 @@ export default function Home() {
         {
           headers: {
             "Content-Type": "application/json",
-            // Authorization: `Bearer ${token}`, // Include token
           },
         }
       );
@@ -236,7 +226,7 @@ export default function Home() {
                 value={selectedUserId}
                 onChange={(e) => setSelectedUserId(e.target.value)}
                 className="w-full p-2 border border-orange-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-gray-900 bg-white"
-                disabled={isLoadingUsers} // Disable while loading users
+                disabled={isLoadingUsers}
               >
                 <option value="" className="text-gray-500">
                   {isLoadingUsers ? "Loading users..." : "Select a user..."}
