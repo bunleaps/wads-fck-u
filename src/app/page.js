@@ -111,7 +111,7 @@ export default function Home() {
         {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`, // Include token
+            // Authorization: `Bearer ${token}`, // Include token
           },
         }
       );
