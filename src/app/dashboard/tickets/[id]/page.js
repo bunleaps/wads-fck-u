@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react"; // Import 'use' and useCallback
+import { use, useEffect, useState, useCallback, useRef } from "react"; // Import 'use', useCallback, and useRef
 import axios from "axios";
 import Link from "next/link";
 import { getToken } from "@/utils/auth";
@@ -19,6 +19,8 @@ function TicketPage({ params: paramsPromise, user }) {
   const [replyContent, setReplyContent] = useState("");
   const [isReplying, setIsReplying] = useState(false);
   const [replyAttachments, setReplyAttachments] = useState([]); // State for attachments
+  const [replyAttachmentError, setReplyAttachmentError] = useState(""); // State for attachment validation errors
+  const replyFileInputRef = useRef(null); // Ref for the reply file input
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
 
@@ -31,6 +33,8 @@ function TicketPage({ params: paramsPromise, user }) {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
+  const MAX_REPLY_FILES = 5; // Maximum number of files for a reply
 
   // Lifted fetchTicketDetails and wrapped in useCallback
   const fetchTicketDetails = useCallback(
@@ -139,6 +143,10 @@ function TicketPage({ params: paramsPromise, user }) {
       setActionError("Reply content cannot be empty.");
       return;
     }
+    if (replyAttachmentError) {
+      setActionError(`Cannot submit: ${replyAttachmentError}`);
+      return;
+    }
     setIsReplying(true);
     setActionError("");
     setActionSuccess("");
@@ -168,6 +176,10 @@ function TicketPage({ params: paramsPromise, user }) {
       setTicket(response.data); // Backend returns the fully populated ticket directly
       setReplyContent("");
       setReplyAttachments([]); // Clear attachments after successful post
+      setReplyAttachmentError(""); // Clear attachment error
+      if (replyFileInputRef.current) {
+        replyFileInputRef.current.value = null; // Reset file input
+      }
       setActionSuccess("Reply posted successfully!");
     } catch (err) {
       const backendErrorMessage = err.response?.data?.error; // Backend uses { error: "..." }
@@ -309,6 +321,22 @@ function TicketPage({ params: paramsPromise, user }) {
   const currentAssignedAdmin = ticket.assignedAdmin
     ? `${ticket.assignedAdmin.firstName} ${ticket.assignedAdmin.lastName} (${ticket.assignedAdmin.username})`
     : "Unassigned";
+
+  const handleReplyFileChange = (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length > MAX_REPLY_FILES) {
+      setReplyAttachmentError(
+        `Attachment limit is ${MAX_REPLY_FILES} items. You selected ${files.length}.`
+      );
+      if (replyFileInputRef.current) {
+        replyFileInputRef.current.value = null; // Clear the file input
+      }
+      setReplyAttachments([]); // Clear selected files state
+      return;
+    }
+    setReplyAttachmentError(""); // Clear any previous error
+    setReplyAttachments(files);
+  };
 
   return (
     <div className="p-4">
@@ -578,16 +606,22 @@ function TicketPage({ params: paramsPromise, user }) {
               htmlFor="attachments"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Attach files (up to 5):
+              Attach files (Max {MAX_REPLY_FILES}):
             </label>
             <input
               type="file"
               id="attachments"
+              ref={replyFileInputRef}
               multiple
-              onChange={(e) => setReplyAttachments(Array.from(e.target.files))} // Convert FileList to Array
+              onChange={handleReplyFileChange}
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
               accept="image/*,application/pdf,.doc,.docx,.txt,.xls,.xlsx" // Optional: specify accepted file types
             />
+            {replyAttachmentError && (
+              <p className="mt-1 text-sm text-red-600">
+                {replyAttachmentError}
+              </p>
+            )}
           </div>
 
           <button
